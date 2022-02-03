@@ -22,9 +22,9 @@ class DeploymentStack(Stack):
         # ==============================
         project_name_param = CfnParameter(scope=self, id='ProjectName', type='String')
         db_name = 'mlflowdb'
-        port = 3306
+        port = 5432
         username = 'master'
-        bucket_name = f'{project_name_param.value_as_string}-artifacts-{Aws.ACCOUNT_ID}'
+        bucket_name = f'{project_name_param.value_as_string}-pg-artifacts-{Aws.ACCOUNT_ID}'
         container_repo_name = 'mlflow-containers'
         cluster_name = 'mlflow'
         service_name = 'mlflow'
@@ -79,22 +79,53 @@ class DeploymentStack(Stack):
         sg_rds = ec2.SecurityGroup(scope=self, id='SGRDS', vpc=vpc, security_group_name='sg_rds')
         # Adds an ingress rule which allows resources in the VPC's CIDR to access the database.
         sg_rds.add_ingress_rule(peer=ec2.Peer.ipv4('10.0.0.0/24'), connection=ec2.Port.tcp(port))
+        # Eric Home IP
+        sg_rds.add_ingress_rule(peer=ec2.Peer.ipv4('24.128.241.7/32'), connection=ec2.Port.tcp(port))
+        # Heather Home IP
+        #sg_rds.add_ingress_rule(peer=ec2.Peer.ipv4('10.0.0.0/24'), connection=ec2.Port.tcp(port))
 
         database = rds.DatabaseInstance(
             scope=self,
-            id='MYSQL',
+            id='PostgreSQL',
             database_name=db_name,
             port=port,
             credentials=rds.Credentials.from_username(username=username, password=db_password_secret.secret_value),
-            engine=rds.DatabaseInstanceEngine.mysql(version=rds.MysqlEngineVersion.VER_8_0_26),
-            instance_type=ec2.InstanceType.of(ec2.InstanceClass.BURSTABLE2, ec2.InstanceSize.SMALL),
+            engine=rds.DatabaseInstanceEngine.postgres(version=rds.PostgresEngineVersion.VER_13),
+            instance_type=ec2.InstanceType.of(ec2.InstanceClass.BURSTABLE3, ec2.InstanceSize.LARGE),
             vpc=vpc,
             security_groups=[sg_rds],
-            vpc_subnets=ec2.SubnetSelection(subnet_type=ec2.SubnetType.PRIVATE_ISOLATED),
+            vpc_subnets=ec2.SubnetSelection(subnet_type=ec2.SubnetType.PUBLIC),
+            publicly_accessible=True,
             # multi_az=True,
             removal_policy=RemovalPolicy.DESTROY,
             deletion_protection=False
         )
+
+        # database = rds.ServerlessCluster(scope=self,
+        #                                  id='PostgreSQL',
+        #                                  database_name=db_name,
+        #                                  port=port,
+        #                                  credentials=rds.Credentials.from_username(username=username, password=db_password_secret.secret_value),
+        #                                  engine=rds.DatabaseClusterEngine.AURORA_POSTGRESQL
+
+
+        # urora = new
+        # CfnDBCluster(this, 'AuroraServerlessCdk', {
+        #     databaseName: 'dbname',
+        #     dbClusterIdentifier: 'aurora-sls',
+        #     engine: 'aurora',
+        #     engineMode: 'serverless',
+        #     masterUsername: 'masteruser',
+        #     masterUserPassword: 'IT_IS_SMART_TO_GENERATE_AND_OUTPUT_THIS',
+        #     port: 3306,
+        #     dbSubnetGroupName: dbSubnetGroup.dbSubnetGroupName,
+        #     scalingConfiguration: {
+        #         autoPause: true,
+        #         maxCapacity: 2,
+        #         minCapacity: 2,
+        #         secondsUntilAutoPause: 3600
+        #     }
+        # });
         # ==================================================
         # =============== FARGATE SERVICE ==================
         # ==================================================

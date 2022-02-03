@@ -1,8 +1,9 @@
 FROM python:3.8.0
 
-RUN pip install \
-    mlflow==1.22.0 \
-    pymysql==1.0.2 \
+RUN pip install --upgrade pip \
+    pip install \
+    mlflow \
+    psycopg2 \
     boto3 && \
     mkdir /mlflow/
 
@@ -12,4 +13,4 @@ CMD mlflow server \
     --host 0.0.0.0 \
     --port 5000 \
     --default-artifact-root ${BUCKET} \
-    --backend-store-uri mysql+pymysql://${USERNAME}:${PASSWORD}@${HOST}:${PORT}/${DATABASE}
+    --backend-store-uri postgresql+psycopg2://${USERNAME}:${PASSWORD}@${HOST}:${PORT}/${DATABASE}
